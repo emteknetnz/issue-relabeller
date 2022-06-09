@@ -1,0 +1,13 @@
+{
+    "name": "sboyd/issue-relabeller",
+    "authors": [
+        {
+            "name": "Steve Boyd",
+            "email": "emteknetnz@gmail.com"
+        }
+    ],
+    "require": {
+        "emteknetnz/silverstripe-data-fetcher": "^0.4.14",
+        "guzzlehttp/guzzle": "^7.4"
+    }
+}

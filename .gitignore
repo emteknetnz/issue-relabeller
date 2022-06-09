@@ -1,0 +1,4 @@
+.github-token
+/vendor/
+/resources/
+composer.lock
