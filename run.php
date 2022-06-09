@@ -101,7 +101,15 @@ init();
 # fetch_labels();
 $data = read_csv('output/labels.csv');
 
-print_r($data);
+$labels = [];
+foreach ($data as $r) {
+    $labels[$r['name']] ??= 0;
+    $labels[$r['name']]++;
+}
+asort($labels);
+$labels = array_reverse($labels);
+
+print_r($labels);
 
 // pp(
 //     req('get', "repos/$ghrepo/labels")
