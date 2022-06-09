@@ -1,4 +1,5 @@
-.github-token
 /vendor/
 /resources/
+/output/
 composer.lock
+.github-token
