@@ -261,6 +261,7 @@ $labels = array_reverse($labels);
 
 print_r($labels);
 
-pp(
-    req('get', "repos/$ghrepo/labels")
-);
+# debug
+// pp(
+//     req('get', "repos/$ghrepo/labels")
+// );
