@@ -1,6 +1,7 @@
 <?php
 use emteknetnz\DataFetcher\Misc\Consts;
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\ClientException;
 
 require 'vendor/autoload.php';
 
@@ -8,24 +9,25 @@ const RENAME = [
     'effort/easy' => 'complexity/low',
     'effort/medium' => 'complexity/medium',
     'effort/hard' => 'complexity/high',
-    'change/major' => 'type/api-change'
+    'change/major' => 'type/api-break',
+    'type/api-change' => 'type/api-break'
 ];
 
-// Do not prefix color with hash, can be lower or upper case
+// Do not prefix color with hash
 const COLORS = [
     'affects/v4' => '5319e7',
     'affects/v5' => '0e8a16',
-    'complexity/low' => 'C2E0C6',
-    'complexity/medium' => 'FEF2C0',
-    'complexity/high' => 'F9D0C4',
-    'Epic' => '3E4B9E',
-    'impact/critical' => 'e11d21',
-    'impact/high' => 'eb6420',
-    'impact/medium' => 'f7c6c7',
+    'complexity/low' => 'c2e0c6',
+    'complexity/medium' => 'fef2c0',
+    'complexity/high' => 'f9d0c4',
+    'Epic' => '3e4b9e',
     'impact/low' => 'fef2c0',
+    'impact/medium' => 'f7c6c7',
+    'impact/high' => 'eb6420',
+    'impact/critical' => 'e11d21',
     'rfc/accepted' => 'dddddd',
     'rfc/draft' => 'dddddd',
-    'type/api-change' => '1D76DB',
+    'type/api-break' => '1d76db',
     'type/bug' => 'd93f0b',
     'type/docs' => '02d7e1',
     'type/enhancement' => '0e8a16',
@@ -161,8 +163,8 @@ function read_csv($fn) {
 }
 
 function rename_labels() {
-    # foreach (get_ghrepos() as $ghrepo) {
-    foreach (['silverstripe/silverstripe-crazy-egg'] as $ghrepo) {
+    #foreach (['silverstripe/silverstripe-crazy-egg'] as $ghrepo) {
+    foreach (get_ghrepos() as $ghrepo) {
         $json = req('get', "repos/$ghrepo/labels");
         foreach ($json as $label) {
             $name = $label->name;
@@ -171,15 +173,24 @@ function rename_labels() {
                 $new_name = RENAME[$name];
                 echo "Renaming $name to $new_name on $ghrepo\n";
                 // note: no need to escape spaces in $name
-                req('PATCH', "repos/$ghrepo/labels/$name", "{\"new_name\":\"$new_name\"}");
+                try {
+                    req('PATCH', "repos/$ghrepo/labels/$name", "{\"new_name\":\"$new_name\"}");
+                } catch (ClientException $e) {
+                    if (preg_match('#already_exists#', $e->getMessage())) {
+                        // https://docs.github.com/en/rest/issues/labels#delete-a-label
+                        echo "$new_name label already exists, deleting $name from $ghrepo\n";
+                        // note: no need to escape spaces in $name
+                        req('DELETE', "repos/$ghrepo/labels/$name");
+                    }
+                }
             }
         }
     }
 }
 
 function delete_labels() {
-    # foreach (get_ghrepos() as $ghrepo) {
-    foreach (['silverstripe/silverstripe-crazy-egg'] as $ghrepo) {
+    #foreach (['silverstripe/silverstripe-crazy-egg'] as $ghrepo) {
+    foreach (get_ghrepos() as $ghrepo) {
         $json = req('get', "repos/$ghrepo/labels");
         foreach ($json as $label) {
             $name = $label->name;
@@ -194,17 +205,18 @@ function delete_labels() {
 }
 
 function update_or_create_labels() {
-    # foreach (get_ghrepos() as $ghrepo) {
-    foreach (['silverstripe/silverstripe-crazy-egg'] as $ghrepo) {
+    #foreach (['silverstripe/silverstripe-crazy-egg'] as $ghrepo) {
+    foreach (get_ghrepos() as $ghrepo) {
         $json = req('get', "repos/$ghrepo/labels");
         foreach (COLORS as $create_name => $color) {
             $found = false;
             foreach ($json as $label) {
                 $name = $label->name;
                 if ($name == $create_name) {
-                    if ($label->color != $color) {
+                    $old_color = $label->color;
+                    if ($old_color != $color) {
                         // https://docs.github.com/en/rest/issues/labels#update-a-label
-                        echo "Updating color for $name to $color on $ghrepo\n";
+                        echo "Updating color for $name from $old_color to $color on $ghrepo\n";
                         // note: no need to escape spaces in $name
                         req('PATCH', "repos/$ghrepo/labels/$name", "{\"color\":\"$color\"}");
                     }
@@ -224,9 +236,9 @@ function update_or_create_labels() {
 # SCRIPT
 init();
 
-#rename_labels();
+rename_labels();
 update_or_create_labels();
-#delete_labels();
+delete_labels();
 
 // # fetch_labels();
 // $data = read_csv('output/labels.csv');
