@@ -109,7 +109,16 @@ function req($method, $path, $jsonBody = null) {
     if ($jsonBody) {
         $options['body'] = $jsonBody;
     }
-    $resp = $client->request($method, $path, $options);
+    try {
+        $resp = $client->request($method, $path, $options);
+    } catch (ClientException $e) {
+        if (preg_match('#Repository was archived#', $e->getMessage())) {
+            // trying a POST/PATCH/DELETE on archived repo - fine to ignore
+            return null;
+        } else {
+            throw $e;
+        }
+    }
     return json_decode($resp->getBody());
 }
 
@@ -177,10 +186,8 @@ function rename_labels() {
                     req('PATCH', "repos/$ghrepo/labels/$name", "{\"new_name\":\"$new_name\"}");
                 } catch (ClientException $e) {
                     if (preg_match('#already_exists#', $e->getMessage())) {
-                        // https://docs.github.com/en/rest/issues/labels#delete-a-label
-                        echo "$new_name label already exists, deleting $name from $ghrepo\n";
-                        // note: no need to escape spaces in $name
-                        req('DELETE', "repos/$ghrepo/labels/$name");
+                        // should manually fix
+                        throw $e;
                     }
                 }
             }
@@ -236,22 +243,24 @@ function update_or_create_labels() {
 # SCRIPT
 init();
 
-rename_labels();
-update_or_create_labels();
-delete_labels();
+# update everything
+// rename_labels();
+// update_or_create_labels();
+// delete_labels();
 
-// # fetch_labels();
-// $data = read_csv('output/labels.csv');
-// $labels = [];
-// foreach ($data as $r) {
-//     $labels[$r['name']] ??= 0;
-//     $labels[$r['name']]++;
-// }
-// asort($labels);
-// $labels = array_reverse($labels);
+# audit existing labels
+fetch_labels();
+$data = read_csv('output/labels.csv');
+$labels = [];
+foreach ($data as $r) {
+    $labels[$r['name']] ??= 0;
+    $labels[$r['name']]++;
+}
+asort($labels);
+$labels = array_reverse($labels);
 
-// print_r($labels);
+print_r($labels);
 
-// pp(
-//     req('get', "repos/$ghrepo/labels")
-// );
+pp(
+    req('get', "repos/$ghrepo/labels")
+);
